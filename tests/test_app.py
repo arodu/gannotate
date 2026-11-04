@@ -1,13 +1,15 @@
 import os
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 try:
     import gi
 
     gi.require_version("Gtk", "3.0")
-    from gi.repository import Gtk
+    gi.require_version("Gdk", "3.0")
+    from gi.repository import Gdk, Gtk
     import cairo
 
     from gannotate.app import Gannotate
@@ -69,6 +71,7 @@ class AppTests(unittest.TestCase):
             self.app.upload_btn,
             self.app.save_menu_item,
             self.app.upload_menu_item,
+            *self.app.zoom_buttons,
         ):
             self.assertFalse(widget.get_sensitive())
 
@@ -100,11 +103,65 @@ class AppTests(unittest.TestCase):
             self.assertTrue(self.app.upload_btn.get_sensitive())
             self.assertTrue(self.app.save_menu_item.get_sensitive())
             self.assertTrue(self.app.upload_menu_item.get_sensitive())
+            for widget in self.app.zoom_buttons:
+                self.assertTrue(widget.get_sensitive())
+
+            self.app.zoom_actual()
+            self.assertEqual(self.app.scale, 1.0)
+            self.app.zoom_in()
+            self.assertGreater(self.app.scale, 1.0)
+            self.app.zoom_out()
+            self.assertAlmostEqual(self.app.scale, 1.0)
+            self.app.zoom_fit()
+            self.assertGreater(self.app.scale, 0)
+            self.assertLessEqual(self.app.scale, 1.0)
 
             self.app.set_image_controls(False)
             self.assertFalse(self.app.tool_buttons["arrow"].get_sensitive())
             self.assertFalse(self.app.save_btn.get_sensitive())
             self.assertFalse(self.app.upload_btn.get_sensitive())
+            for widget in self.app.zoom_buttons:
+                self.assertFalse(widget.get_sensitive())
+
+    def test_zoom_fit_and_actual(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "test.png")
+            make_png(path)
+            self.app.load_image(path)
+            self.assertTrue(self.app.get_resizable())
+
+            with mock.patch.object(self.app, "_view_size", return_value=(60, 40)):
+                self.app.zoom_fit()
+            self.assertAlmostEqual(self.app.scale, 0.5, places=2)
+
+            self.app.zoom_actual()
+            self.assertEqual(self.app.scale, 1.0)
+            self.app.zoom_in()
+            self.assertGreater(self.app.scale, 1.0)
+
+    def test_ctrl_drag_pans(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "test.png")
+            make_png(path)
+            self.app.load_image(path)
+
+            press = SimpleNamespace(
+                button=1,
+                state=Gdk.ModifierType.CONTROL_MASK,
+                x=10,
+                y=10,
+                x_root=100,
+                y_root=100,
+            )
+            self.assertTrue(self.app.on_press(self.app.area, press))
+            self.assertIsNotNone(self.app.pan_start)
+
+            motion = SimpleNamespace(x_root=60, y_root=60)
+            self.assertTrue(self.app.on_motion(self.app.area, motion))
+
+            release = SimpleNamespace(button=1)
+            self.assertTrue(self.app.on_release(self.app.area, release))
+            self.assertIsNone(self.app.pan_start)
 
     def test_upload_disabled_without_command(self):
         with tempfile.TemporaryDirectory() as folder:

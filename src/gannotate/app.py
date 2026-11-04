@@ -73,6 +73,22 @@ _TOOLBAR_CSS = b"""
     box-shadow: none;
     background: transparent;
 }
+.gannotate-statusbar {
+    background-color: @theme_bg_color;
+    border-top: 1px solid alpha(@theme_fg_color, 0.12);
+}
+.gannotate-statusbar button {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 2px 6px;
+    min-width: 0;
+    min-height: 0;
+}
+.gannotate-statusbar button:hover {
+    background-color: alpha(@theme_fg_color, 0.10);
+    border-radius: 4px;
+}
 """
 _css_installed = False
 
@@ -172,6 +188,10 @@ class Gannotate(Gtk.Window):
         self.drag_corner = None
         self.pending_history = False
         self.tool_buttons = {}
+        self.pan_start = None
+        self.zoom_fit_mode = True
+        self._fit_pending = False
+        self._fallback_viewport = (820, 520)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.add(vbox)
@@ -231,23 +251,92 @@ class Gannotate(Gtk.Window):
         self.area = Gtk.DrawingArea()
         self.area.set_size_request(dw, dh)
         self.area.set_halign(Gtk.Align.CENTER)
+        self.area.set_valign(Gtk.Align.CENTER)
         self.area.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
             | Gdk.EventMask.BUTTON_RELEASE_MASK
             | Gdk.EventMask.POINTER_MOTION_MASK
+            | Gdk.EventMask.SCROLL_MASK
+            | Gdk.EventMask.SMOOTH_SCROLL_MASK
         )
         self.area.connect("draw", self.on_draw)
         self.area.connect("button-press-event", self.on_press)
         self.area.connect("button-release-event", self.on_release)
         self.area.connect("motion-notify-event", self.on_motion)
-        vbox.pack_start(self.area, False, False, 0)
+        self.area.connect("scroll-event", self.on_scroll)
+
+        self.scrolled = Gtk.ScrolledWindow()
+        self.scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        self.scrolled.set_shadow_type(Gtk.ShadowType.NONE)
+        self.scrolled.add(self.area)
+        self.scrolled.connect("size-allocate", self.on_viewport_resize)
+        self.hadj = self.scrolled.get_hadjustment()
+        self.vadj = self.scrolled.get_vadjustment()
+        vbox.pack_start(self.scrolled, True, True, 0)
+
+        self.statusbar = self.build_statusbar()
+        vbox.pack_start(self.statusbar, False, False, 0)
 
         self.connect("key-press-event", self.on_key)
         self.connect("destroy", Gtk.main_quit)
-        self.set_resizable(False)
+
+        if path is not None:
+            target_w, target_h = self._default_window_size()
+            self._fallback_viewport = (
+                target_w,
+                max(1, target_h - self._chrome_height()),
+            )
+            self.resize(target_w, target_h)
+            self.zoom_fit()
+        else:
+            self.resize(820, 610)
         self.tool_buttons["select"].set_active(True)
         self.set_image_controls(path is not None)
+        self.update_info_label()
         self.show_all()
+        if path is not None:
+            GLib.idle_add(self._fit_after_show)
+
+    def build_statusbar(self):
+        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        bar.set_border_width(4)
+        bar.get_style_context().add_class("gannotate-statusbar")
+
+        self.info_label = Gtk.Label(label="")
+        self.info_label.set_xalign(0)
+        self.info_label.set_tooltip_text("Ctrl+drag or middle-drag to pan")
+        bar.pack_start(self.info_label, True, True, 0)
+
+        self.zoom_out_btn = self._zoom_button(
+            "\u2212", "Zoom out (Ctrl+-)", self.zoom_out
+        )
+        self.zoom_in_btn = self._zoom_button(
+            "+", "Zoom in (Ctrl++)", self.zoom_in
+        )
+        self.zoom_label = Gtk.Label(label="\u2014")
+        self.zoom_label.set_width_chars(5)
+        fit_btn = self._zoom_button("Fit", "Fit to window (Ctrl+0)", self.zoom_fit)
+        actual_btn = self._zoom_button("1:1", "Actual size (Ctrl+1)", self.zoom_actual)
+        self.zoom_buttons = [
+            self.zoom_out_btn,
+            self.zoom_in_btn,
+            fit_btn,
+            actual_btn,
+        ]
+
+        bar.pack_end(actual_btn, False, False, 0)
+        bar.pack_end(fit_btn, False, False, 0)
+        bar.pack_end(self.zoom_in_btn, False, False, 0)
+        bar.pack_end(self.zoom_label, False, False, 0)
+        bar.pack_end(self.zoom_out_btn, False, False, 0)
+        return bar
+
+    def _zoom_button(self, label, tooltip, handler):
+        btn = Gtk.Button(label=label)
+        btn.set_relief(Gtk.ReliefStyle.NONE)
+        btn.set_tooltip_text(tooltip)
+        btn.connect("clicked", lambda *_: handler())
+        return btn
 
     def icon_button(self, icon, tooltip, handler):
         btn = Gtk.Button()
@@ -365,6 +454,8 @@ class Gannotate(Gtk.Window):
         self.undo_btn.set_sensitive(enabled)
         self.redo_btn.set_sensitive(enabled)
         self.save_btn.set_sensitive(enabled)
+        for btn in getattr(self, "zoom_buttons", []):
+            btn.set_sensitive(enabled)
         if getattr(self, "save_menu_item", None) is not None:
             self.save_menu_item.set_sensitive(enabled)
         self.update_upload_state()
@@ -416,6 +507,17 @@ class Gannotate(Gtk.Window):
     def on_press(self, widget, ev):
         if self.base_surface is None:
             return False
+        if ev.button == 2 or (
+            ev.button == 1 and (ev.state & Gdk.ModifierType.CONTROL_MASK)
+        ):
+            self.pan_start = (
+                ev.x_root,
+                ev.y_root,
+                self.hadj.get_value(),
+                self.vadj.get_value(),
+            )
+            self._set_cursor("grabbing")
+            return True
         if ev.button != 1:
             return False
         p = self.clamp(self.img_coords(ev.x, ev.y))
@@ -440,6 +542,12 @@ class Gannotate(Gtk.Window):
         return True
 
     def on_motion(self, widget, ev):
+        if self.pan_start is not None:
+            dx = ev.x_root - self.pan_start[0]
+            dy = ev.y_root - self.pan_start[1]
+            self.hadj.set_value(max(0.0, self.pan_start[2] - dx))
+            self.vadj.set_value(max(0.0, self.pan_start[3] - dy))
+            return True
         if self.drag_mode:
             p = self.clamp(self.img_coords(ev.x, ev.y))
             if self.drag_mode == "move":
@@ -473,6 +581,10 @@ class Gannotate(Gtk.Window):
         return True
 
     def on_release(self, widget, ev):
+        if self.pan_start is not None:
+            self.pan_start = None
+            self._set_cursor(None)
+            return True
         if self.drag_mode:
             self.drag_mode = None
             self.drag_orig = None
@@ -529,6 +641,18 @@ class Gannotate(Gtk.Window):
         shift = bool(ev.state & Gdk.ModifierType.SHIFT_MASK)
         if key == Gdk.KEY_Escape:
             self.cancel()
+            return True
+        if key in (Gdk.KEY_plus, Gdk.KEY_equal, Gdk.KEY_KP_Add):
+            self.zoom_in()
+            return True
+        if key in (Gdk.KEY_minus, Gdk.KEY_KP_Subtract):
+            self.zoom_out()
+            return True
+        if ctrl and key in (Gdk.KEY_0, Gdk.KEY_KP_0):
+            self.zoom_fit()
+            return True
+        if ctrl and key in (Gdk.KEY_1, Gdk.KEY_KP_1):
+            self.zoom_actual()
             return True
         if key in (Gdk.KEY_Return, Gdk.KEY_KP_Enter) and not ctrl:
             self.upload()
@@ -633,15 +757,8 @@ class Gannotate(Gtk.Window):
         self.img_w = pixbuf.get_width()
         self.img_h = pixbuf.get_height()
         self.base_surface = Gdk.cairo_surface_create_from_pixbuf(pixbuf, 1, None)
-        display = Gdk.Display.get_default()
-        monitor = display.get_primary_monitor() or display.get_monitor(0)
-        geom = monitor.get_geometry()
-        self.scale = min(
-            1.0,
-            int(geom.width * 0.92) / self.img_w,
-            int(geom.height * 0.82) / self.img_h,
-        )
-        return max(1, int(self.img_w * self.scale)), max(1, int(self.img_h * self.scale))
+        self.scale = 1.0
+        return self.img_w, self.img_h
 
     def load_image(self, path):
         dw, dh = self._set_image(GdkPixbuf.Pixbuf.new_from_file(path))
@@ -657,14 +774,171 @@ class Gannotate(Gtk.Window):
         self.area.set_size_request(dw, dh)
         self.set_title(f"{__app_name__} - {os.path.basename(path)}")
         self.set_image_controls(True)
-        self._resize_to_image(dw, dh)
+        target_w, target_h = self._default_window_size()
+        self._fallback_viewport = (
+            target_w,
+            max(1, target_h - self._chrome_height()),
+        )
+        self.resize(target_w, target_h)
+        self.zoom_fit_mode = True
+        self.zoom_fit()
+        GLib.idle_add(self._fit_after_show)
+        self.update_info_label()
         self.area.queue_draw()
 
-    def _resize_to_image(self, dw, dh):
-        height = self.toolbar.get_allocated_height() or 40
-        self.set_resizable(True)
-        self.resize(dw, dh + height)
-        self.set_resizable(False)
+    def _workarea(self):
+        display = Gdk.Display.get_default()
+        monitor = display.get_primary_monitor() or display.get_monitor(0)
+        try:
+            area = monitor.get_workarea()
+        except Exception:
+            area = monitor.get_geometry()
+        return area.width, area.height
+
+    def _chrome_height(self):
+        toolbar = self.toolbar.get_allocated_height()
+        status = self.statusbar.get_allocated_height()
+        if toolbar < 10:
+            toolbar = 44
+        if status < 10:
+            status = 36
+        return toolbar + status + 10
+
+    def _default_window_size(self):
+        max_w, max_h = self._workarea()
+        max_w = int(max_w * 0.92)
+        max_h = int(max_h * 0.88)
+        chrome = self._chrome_height()
+        width = max(640, min(self.img_w, max_w))
+        height = max(420, min(self.img_h + chrome, max_h))
+        return width, height
+
+    def _view_size(self):
+        vw = self.scrolled.get_allocated_width()
+        vh = self.scrolled.get_allocated_height()
+        if vw < 50 or vh < 50:
+            return self._fallback_viewport
+        return max(1, vw), max(1, vh)
+
+    def _compute_fit_scale(self):
+        vw, vh = self._view_size()
+        return min(1.0, vw / max(1, self.img_w), vh / max(1, self.img_h))
+
+    def _fit_after_show(self):
+        if self.base_surface is not None and self.zoom_fit_mode:
+            self.zoom_fit()
+        return False
+
+    def on_viewport_resize(self, widget, allocation):
+        if self.base_surface is None or not self.zoom_fit_mode:
+            return
+        if self._fit_pending:
+            return
+        self._fit_pending = True
+        GLib.idle_add(self._fit_idle)
+
+    def _fit_idle(self):
+        self._fit_pending = False
+        if self.base_surface is not None and self.zoom_fit_mode:
+            self._apply_zoom(self._compute_fit_scale(), keep_fit=True, reset=True)
+        return False
+
+    def _apply_zoom(self, scale, anchor=None, keep_fit=False, reset=False):
+        if self.base_surface is None:
+            return
+        new_scale = min(max(scale, 0.05), 8.0)
+        old = self.scale or 1.0
+        vw, vh = self._view_size()
+        if reset:
+            anchor = (0.0, 0.0)
+            h_off = v_off = 0.0
+        else:
+            if anchor is None:
+                anchor = (vw / 2.0, vh / 2.0)
+            h_off = self.hadj.get_value()
+            v_off = self.vadj.get_value()
+        ix = (h_off + anchor[0]) / old
+        iy = (v_off + anchor[1]) / old
+        self.scale = new_scale
+        self.zoom_fit_mode = keep_fit
+        self.area.set_size_request(
+            max(1, int(round(self.img_w * new_scale))),
+            max(1, int(round(self.img_h * new_scale))),
+        )
+        self.area.queue_resize()
+        self.zoom_label.set_text(f"{new_scale * 100:.0f}%")
+        self.area.queue_draw()
+        if reset:
+            target = (0.0, 0.0)
+        else:
+            target = (ix * new_scale - anchor[0], iy * new_scale - anchor[1])
+        GLib.idle_add(self._set_scroll, target[0], target[1])
+
+    def _set_scroll(self, h, v):
+        self.hadj.set_value(max(0.0, h))
+        self.vadj.set_value(max(0.0, v))
+        return False
+
+    def _set_cursor(self, name):
+        try:
+            window = self.area.get_window()
+            if window is None:
+                return
+            cursor = None
+            if name:
+                cursor = Gdk.Cursor.new_from_name(
+                    Gdk.Display.get_default(), name
+                )
+            window.set_cursor(cursor)
+        except Exception:
+            pass
+
+    def zoom_in(self):
+        if self.base_surface is not None:
+            self._apply_zoom(self.scale * 1.25)
+
+    def zoom_out(self):
+        if self.base_surface is not None:
+            self._apply_zoom(self.scale / 1.25)
+
+    def zoom_fit(self):
+        if self.base_surface is not None:
+            self.zoom_fit_mode = True
+            self._apply_zoom(self._compute_fit_scale(), keep_fit=True, reset=True)
+
+    def zoom_actual(self):
+        if self.base_surface is not None:
+            self._apply_zoom(1.0)
+
+    def on_scroll(self, widget, ev):
+        if self.base_surface is None or not (
+            ev.state & Gdk.ModifierType.CONTROL_MASK
+        ):
+            return False
+        if ev.direction == Gdk.ScrollDirection.SMOOTH:
+            ok, _dx, dy = ev.get_scroll_deltas()
+            if not ok:
+                return False
+            factor = 1.1 ** (-dy)
+        elif ev.direction == Gdk.ScrollDirection.UP:
+            factor = 1.25
+        elif ev.direction == Gdk.ScrollDirection.DOWN:
+            factor = 0.8
+        else:
+            return False
+        h_off = self.hadj.get_value()
+        v_off = self.vadj.get_value()
+        self._apply_zoom(
+            self.scale * factor, anchor=(ev.x - h_off, ev.y - v_off)
+        )
+        return True
+
+    def update_info_label(self):
+        if self.base_surface is None:
+            self.info_label.set_text("No image")
+            self.zoom_label.set_text("\u2014")
+        else:
+            self.info_label.set_text(f"{self.img_w} \u00d7 {self.img_h}")
 
     def _start_dir(self):
         if self.current_path:

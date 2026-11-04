@@ -12,6 +12,8 @@ can hand it off to any upload command you configure.
 - Arrow, rectangle, ellipse, line, pencil, highlighter and text.
 - Four arrow heads (classic, triangle, slim, wide), shown as icons in Preferences.
 - Color picker and line width.
+- Resizable window with zoom (Ctrl+scroll, +/-, Fit, 1:1) and scrollbars;
+  middle-drag or Ctrl+drag to pan.
 - Select tool to move and resize annotations after adding them.
 - Undo/redo and delete selected.
 - Save as PNG or run a configurable upload command.

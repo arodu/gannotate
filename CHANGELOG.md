@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - About dialog with website and author links.
 - Original symbolic icon set and application icon, with no third-party
   icon dependency.
+- Resizable, scrollable canvas with zoom controls (Ctrl+scroll, +/-, Fit,
+  1:1) and middle-drag or Ctrl+drag panning.
 - XFCE integration through `xfce4-screenshooter` custom actions.
 - Unit tests for the geometry model.
 - UI tests for the main window.
