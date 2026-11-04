@@ -120,6 +120,12 @@ src/gannotate/upload.py    upload command runner
 src/gannotate/__main__.py  CLI entry point
 ```
 
+## Screenshots
+
+![Gannotate annotating a screenshot](docs/screenshots/main.png)
+
+![Preferences](docs/screenshots/preferences.png)
+
 ## Credits
 
 Created by [arodu](https://github.com/arodu).
