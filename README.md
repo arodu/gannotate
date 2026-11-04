@@ -145,8 +145,8 @@ src/gannotate/__main__.py  CLI entry point
 
 Created by [arodu](https://github.com/arodu).
 
-Icons are based on Font Awesome Free 7.3.1 (CC BY 4.0). See
-`THIRD_PARTY_NOTICES.md`.
+The icon set is original to Gannotate and is covered by the project
+license.
 
 ## License
 

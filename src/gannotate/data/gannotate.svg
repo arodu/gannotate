@@ -5,8 +5,7 @@
       <stop offset="1" stop-color="#047857"/>
     </linearGradient>
   </defs>
-  <rect x="3" y="3" width="122" height="122" rx="28" fill="url(#bg)"/>
-<rect x="22" y="30" width="84" height="62" rx="9" fill="#ffffff" stroke="#a7f3d0" stroke-width="2"/>
-  <path d="M34 82 Q44 72 54 82 T74 82" stroke="#ef4444" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <g transform="translate(64 64) scale(0.09) translate(-320 -320)" fill="#0f172a"><path d="M416.9 85.2L372 130.1L509.9 268L554.8 223.1C568.4 209.6 576 191.2 576 172C576 152.8 568.4 134.4 554.8 120.9L519.1 85.2C505.6 71.6 487.2 64 468 64C448.8 64 430.4 71.6 416.9 85.2zM338.1 164L122.9 379.1C112.2 389.8 104.4 403.2 100.3 417.8L64.9 545.6C62.6 553.9 64.9 562.9 71.1 569C77.3 575.1 86.2 577.5 94.5 575.2L222.3 539.7C236.9 535.6 250.2 527.9 261 517.1L476 301.9L338.1 164z"/></g>
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bg)"/>
+  <path d="M88 32 40 80l-8 26 26-8 48-48a12 12 0 0 0-18-18z" fill="#ecfdf5"/>
+  <circle cx="47" cy="91" r="4.5" fill="#047857"/>
 </svg>

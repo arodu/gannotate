@@ -21,7 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Blank launch state with disabled tools until an image is opened.
 - Preferences dialog with General and Upload tabs.
 - About dialog with website and author links.
-- Symbolic icon theme and application icon.
+- Original symbolic icon set and application icon, with no third-party
+  icon dependency.
 - XFCE integration through `xfce4-screenshooter` custom actions.
 - Unit tests for the geometry model.
 - UI tests for the main window.
