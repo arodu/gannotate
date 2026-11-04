@@ -7,22 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Four arrow heads (classic, triangle, slim, wide), with icons in the Preferences selector.
-- Blank launch state with disabled tools until an image is opened.
-- UI tests for the main window.
-
-### Changed
-
-- Open Image now starts in the last folder, or `~/Pictures` when blank.
-
 ## [0.1.0] - 2026-11-04
 
 ### Added
 
 - GTK3/Cairo annotator for existing screenshots.
 - Arrow, rectangle, ellipse, line, pencil, highlighter and text tools.
+- Four arrow heads (classic, triangle, slim, wide), with icons in the
+  Preferences selector.
 - Select tool to move and resize annotations after adding them.
 - Undo/redo and delete selected.
 - Open existing images, save as PNG, and run a configurable upload command.
@@ -32,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Symbolic icon theme and application icon.
 - XFCE integration through `xfce4-screenshooter` custom actions.
 - Unit tests for the geometry model.
+- UI tests for the main window.
+
+### Changed
+
+- Open Image now starts in the last folder, or `~/Pictures` when blank.
 
 ### Notes
 
