@@ -10,6 +10,7 @@ can hand it off to any upload command you configure.
 ## Features
 
 - Arrow, rectangle, ellipse, line, pencil, highlighter and text.
+- Four arrow heads (classic, triangle, slim, wide), shown as icons in Preferences.
 - Color picker and line width.
 - Select tool to move and resize annotations after adding them.
 - Undo/redo and delete selected.

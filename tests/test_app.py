@@ -53,6 +53,9 @@ class AppTests(unittest.TestCase):
         self.assertIsNone(self.app.base_surface)
         self.assertIsNone(self.app.current_path)
         self.assertEqual(self.app.get_title(), "Gannotate")
+        self.assertEqual(self.app.arrow_style, "classic")
+        self.assertEqual(self.app._config_arrow_style("slim"), "slim")
+        self.assertEqual(self.app._config_arrow_style("bogus"), "classic")
 
         for button in self.app.tool_buttons.values():
             self.assertFalse(button.get_sensitive())

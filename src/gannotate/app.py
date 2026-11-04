@@ -6,6 +6,7 @@ import os
 import tempfile
 import time
 
+import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -15,7 +16,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 from . import ICON_PATH, ICON_ROOT, __app_name__, __version__  # noqa: E402
 from .config import save_config  # noqa: E402
 from .model import bbox, hit, scale_annotation, translate  # noqa: E402
-from .render import draw_annotation, flatten, measure_text  # noqa: E402
+from .render import ARROW_STYLES, draw_annotation, flatten, measure_text  # noqa: E402
 
 HANDLE = 9  # screen pixels
 TOOLS = [
@@ -28,6 +29,13 @@ TOOLS = [
     ("mark", "Highlighter", "gannotate-highlighter-symbolic"),
     ("text", "Text", "gannotate-text-symbolic"),
 ]
+
+ARROW_STYLE_LABELS = (
+    ("classic", "Classic"),
+    ("triangle", "Triangle"),
+    ("slim", "Slim"),
+    ("wide", "Wide"),
+)
 
 _TOOLBAR_CSS = b"""
 .gannotate-toolbar {
@@ -97,6 +105,20 @@ def _install_icons():
     _icons_installed = True
 
 
+def _arrow_pixbuf(style, color, width=24, height=22):
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+    cr = cairo.Context(surface)
+    sample = {
+        "type": "arrow",
+        "p0": (2.0, height / 2),
+        "p1": (width - 2.0, height / 2),
+        "color": (color.red, color.green, color.blue),
+        "width": 2.5,
+    }
+    draw_annotation(cr, sample, style)
+    return Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
+
+
 class Gannotate(Gtk.Window):
     def __init__(self, path, config):
         GLib.set_prgname("gannotate")
@@ -139,6 +161,7 @@ class Gannotate(Gtk.Window):
         self.tool = "select"
         self.color = self._config_color(config.get("default_color"))
         self.width = self._config_width(config.get("default_width"))
+        self.arrow_style = self._config_arrow_style(config.get("arrow_style"))
         self.result_path = None
         self.upload_after = False
         self.drag_mode = None
@@ -315,6 +338,10 @@ class Gannotate(Gtk.Window):
             return min(max(int(value), 1), 30)
         except Exception:
             return 4
+
+    @staticmethod
+    def _config_arrow_style(value):
+        return value if value in ARROW_STYLES else "classic"
 
     def update_upload_state(self):
         has_image = self.base_surface is not None
@@ -577,9 +604,9 @@ class Gannotate(Gtk.Window):
         cr.set_source_surface(self.base_surface, 0, 0)
         cr.paint()
         for a in self.annots:
-            draw_annotation(cr, a)
+            draw_annotation(cr, a, self.arrow_style)
         if self.current is not None:
-            draw_annotation(cr, self.current)
+            draw_annotation(cr, self.current, self.arrow_style)
         cr.restore()
         self.draw_selection(cr)
         return False
@@ -697,7 +724,14 @@ class Gannotate(Gtk.Window):
             return
         folder = tempfile.mkdtemp(prefix="gannotate-")
         path = os.path.join(folder, "annotated.png")
-        flatten(self.base_surface, self.annots, self.img_w, self.img_h, path)
+        flatten(
+            self.base_surface,
+            self.annots,
+            self.img_w,
+            self.img_h,
+            path,
+            self.arrow_style,
+        )
         self.result_path = path
         self.upload_after = True
         self.close()
@@ -726,7 +760,14 @@ class Gannotate(Gtk.Window):
         path = dlg.get_filename()
         dlg.destroy()
         if resp == Gtk.ResponseType.OK and path:
-            flatten(self.base_surface, self.annots, self.img_w, self.img_h, path)
+            flatten(
+                self.base_surface,
+                self.annots,
+                self.img_w,
+                self.img_h,
+                path,
+                self.arrow_style,
+            )
             self.result_path = path
             self.upload_after = False
             self.close()
@@ -765,7 +806,30 @@ class Gannotate(Gtk.Window):
         width_spin.set_value(self.width)
         grid.attach(width_spin, 1, 1, 1, 1)
 
+        style_label = Gtk.Label(label="Arrow head")
+        style_label.set_xalign(0)
+        grid.attach(style_label, 0, 2, 1, 1)
+
+        fg = dlg.get_style_context().get_color(Gtk.StateFlags.NORMAL)
+        store = Gtk.ListStore(GdkPixbuf.Pixbuf, str, str)
+        for key, label in ARROW_STYLE_LABELS:
+            store.append([_arrow_pixbuf(key, fg), label, key])
+
+        style_combo = Gtk.ComboBox(model=store)
+        icon_cell = Gtk.CellRendererPixbuf()
+        style_combo.pack_start(icon_cell, False)
+        style_combo.add_attribute(icon_cell, "pixbuf", 0)
+        text_cell = Gtk.CellRendererText()
+        style_combo.pack_start(text_cell, True)
+        style_combo.add_attribute(text_cell, "text", 1)
+        for index, row in enumerate(store):
+            if row[2] == self.arrow_style:
+                style_combo.set_active(index)
+                break
+        grid.attach(style_combo, 1, 2, 1, 1)
+
         general.pack_start(grid, False, False, 0)
+
         notebook.append_page(general, Gtk.Label(label="General"))
 
         # Upload tab
@@ -831,6 +895,12 @@ class Gannotate(Gtk.Window):
         self.width = self._config_width(width_spin.get_value())
         self.config["default_width"] = self.width
         self.width_spin.set_value(self.width)
+
+        active = style_combo.get_active_iter()
+        style_key = store[active][2] if active is not None else self.arrow_style
+        self.arrow_style = self._config_arrow_style(style_key)
+        self.config["arrow_style"] = self.arrow_style
+        self.area.queue_draw()
 
         save_config(self.config)
         self.update_upload_state()

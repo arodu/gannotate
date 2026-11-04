@@ -14,6 +14,7 @@ DEFAULT_CONFIG = {
     "upload_command": "",
     "default_color": [0.95, 0.15, 0.15],
     "default_width": 4,
+    "arrow_style": "classic",
 }
 
 

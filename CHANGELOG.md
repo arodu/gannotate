@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Four arrow heads (classic, triangle, slim, wide), with icons in the Preferences selector.
+- Blank launch state with disabled tools until an image is opened.
+- UI tests for the main window.
+
+### Changed
+
+- Open Image now starts in the last folder, or `~/Pictures` when blank.
+
 ## [0.1.0] - 2026-11-04
 
 ### Added
