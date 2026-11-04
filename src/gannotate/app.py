@@ -69,9 +69,18 @@ _TOOLBAR_CSS = b"""
 }
 .gannotate-toolbar spinbutton {
     min-height: 24px;
+    margin: 2px;
     border: none;
-    box-shadow: none;
+    border-radius: 4px;
     background: transparent;
+    box-shadow: none;
+}
+.gannotate-toolbar spinbutton:focus {
+    box-shadow: 0 0 0 2px @theme_selected_bg_color;
+}
+.gannotate-toolbar spinbutton entry,
+.gannotate-toolbar spinbutton entry:focus {
+    box-shadow: none;
 }
 .gannotate-statusbar {
     background-color: @theme_bg_color;
