@@ -1,0 +1,10 @@
+#!/bin/sh
+# Run Gannotate from the source tree or from an installed copy.
+HERE="$(cd "$(dirname "$0")" && pwd)"
+if [ -d "$HERE/../src/gannotate" ]; then
+    PYTHONPATH="$HERE/../src${PYTHONPATH:+:$PYTHONPATH}"
+else
+    PYTHONPATH="$HERE/../lib${PYTHONPATH:+:$PYTHONPATH}"
+fi
+export PYTHONPATH
+exec python3 -m gannotate "$@"

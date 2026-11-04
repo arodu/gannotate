@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Gannotate
+GenericName=Screenshot Annotator
+Comment=Annotate screenshots with arrows, shapes and text
+Exec=gannotate %f
+Icon=gannotate
+Terminal=false
+Categories=Graphics;Utility;
+MimeType=image/png;image/jpeg;image/webp;
+Keywords=screenshot;annotate;capture;annotation;

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gannotate"
+version = "0.1.0"
+description = "A lightweight GTK3 screenshot annotator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0" }
+authors = [{ name = "arodu" }]
+keywords = ["screenshot", "annotate", "gtk", "xfce", "cairo"]
+classifiers = [
+    "Environment :: X11 Applications :: GTK",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Graphics",
+]
+dependencies = [
+    "PyGObject>=3.42",
+    "pycairo>=1.20",
+]
+
+[project.scripts]
+gannotate = "gannotate.__main__:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+gannotate = ["data/*", "data/icons/hicolor/scalable/actions/*.svg"]
