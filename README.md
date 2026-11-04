@@ -1,5 +1,7 @@
 # Gannotate
 
+[![Tests](https://github.com/arodu/gannotate/actions/workflows/tests.yml/badge.svg)](https://github.com/arodu/gannotate/actions/workflows/tests.yml)
+
 A lightweight screenshot annotator for Linux, built with GTK3 and Cairo.
 
 Gannotate opens an existing capture, lets you add arrows, shapes and text, and
@@ -14,6 +16,17 @@ can hand it off to any upload command you configure.
 - Save as PNG or run a configurable upload command.
 - Uploads are opt-in and disabled by default.
 - Small dependency footprint: GTK3 + Cairo.
+
+## Status / Limitations
+
+Gannotate is an early 0.1.0 release.
+
+- Linux/X11 focused; tested on XFCE. Region capture relies on `xfce4-screenshooter`.
+- No Wayland/portal capture yet.
+- Uploads are opt-in: configure a command in Preferences.
+- No blur or step numbering yet.
+- Text is single-line; annotations are flattened to a PNG.
+- HiDPI and multi-monitor setups are not deeply tested.
 
 ## Requirements
 
