@@ -32,13 +32,16 @@ def save_local(path):
 
 def main(argv=None):
     argv = sys.argv if argv is None else argv
-    if len(argv) != 2:
-        print(f"usage: {argv[0]} <image>", file=sys.stderr)
+    if len(argv) > 2:
+        print(f"usage: {argv[0]} [image]", file=sys.stderr)
         return 2
-    path = argv[1]
-    if not os.path.isfile(path):
-        print(f"not found: {path}", file=sys.stderr)
-        return 1
+    if len(argv) == 2:
+        path = argv[1]
+        if not os.path.isfile(path):
+            print(f"not found: {path}", file=sys.stderr)
+            return 1
+    else:
+        path = None
 
     config = load_config()
     app = Gannotate(path, config)

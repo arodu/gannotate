@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Select tool to move and resize annotations after adding them.
 - Undo/redo and delete selected.
 - Open existing images, save as PNG, and run a configurable upload command.
+- Blank launch state with disabled tools until an image is opened.
 - Preferences dialog with General and Upload tabs.
 - About dialog with website and author links.
 - Symbolic icon theme and application icon.

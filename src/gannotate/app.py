@@ -117,9 +117,19 @@ class Gannotate(Gtk.Window):
         self.config = config
         self.upload_command = config.get("upload_command", "")
 
-        self.current_path = path
-        dw, dh = self._set_image(GdkPixbuf.Pixbuf.new_from_file(path))
-        self.set_title(f"{__app_name__} - {os.path.basename(path)}")
+        if path is None:
+            self.current_path = None
+            self.pixbuf = None
+            self.base_surface = None
+            self.img_w = 0
+            self.img_h = 0
+            self.scale = 1.0
+            dw, dh = 820, 520
+            self.set_title(__app_name__)
+        else:
+            self.current_path = path
+            dw, dh = self._set_image(GdkPixbuf.Pixbuf.new_from_file(path))
+            self.set_title(f"{__app_name__} - {os.path.basename(path)}")
 
         self.annots = []
         self.history = []
@@ -177,31 +187,21 @@ class Gannotate(Gtk.Window):
         bar.pack_start(self.width_spin, False, False, 0)
 
         bar.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, False, 4)
-        bar.pack_start(
-            self.icon_button(
-                "gannotate-undo-symbolic", "Undo (Ctrl+Z)", self.undo
-            ),
-            False,
-            False,
-            0,
+        self.undo_btn = self.icon_button(
+            "gannotate-undo-symbolic", "Undo (Ctrl+Z)", self.undo
         )
-        bar.pack_start(
-            self.icon_button(
-                "gannotate-redo-symbolic", "Redo (Ctrl+Shift+Z)", self.redo_last
-            ),
-            False,
-            False,
-            0,
+        bar.pack_start(self.undo_btn, False, False, 0)
+        self.redo_btn = self.icon_button(
+            "gannotate-redo-symbolic", "Redo (Ctrl+Shift+Z)", self.redo_last
         )
+        bar.pack_start(self.redo_btn, False, False, 0)
 
         bar.pack_end(self.menu_button(), False, False, 0)
         bar.pack_end(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, False, 4)
-        bar.pack_end(
-            self.icon_button("gannotate-save-symbolic", "Save as... (Ctrl+S)", self.save_dialog),
-            False,
-            False,
-            0,
+        self.save_btn = self.icon_button(
+            "gannotate-save-symbolic", "Save as... (Ctrl+S)", self.save_dialog
         )
+        bar.pack_end(self.save_btn, False, False, 0)
         self.upload_btn = self.icon_button("gannotate-upload-symbolic", "Upload (Enter)", self.upload)
         bar.pack_end(self.upload_btn, False, False, 0)
 
@@ -223,7 +223,7 @@ class Gannotate(Gtk.Window):
         self.connect("destroy", Gtk.main_quit)
         self.set_resizable(False)
         self.tool_buttons["select"].set_active(True)
-        self.update_upload_state()
+        self.set_image_controls(path is not None)
         self.show_all()
 
     def icon_button(self, icon, tooltip, handler):
@@ -240,8 +240,12 @@ class Gannotate(Gtk.Window):
         self._menu_item(menu, "Open Image...", "gannotate-open-symbolic", self.open_file)
         menu.append(Gtk.SeparatorMenuItem())
 
-        self.upload_menu_item = self._menu_item(menu, "Upload", "gannotate-upload-symbolic", self.upload)
-        self._menu_item(menu, "Save...", "gannotate-save-symbolic", self.save_dialog)
+        self.upload_menu_item = self._menu_item(
+            menu, "Upload", "gannotate-upload-symbolic", self.upload
+        )
+        self.save_menu_item = self._menu_item(
+            menu, "Save...", "gannotate-save-symbolic", self.save_dialog
+        )
         menu.append(Gtk.SeparatorMenuItem())
 
         self._menu_item(
@@ -313,13 +317,35 @@ class Gannotate(Gtk.Window):
             return 4
 
     def update_upload_state(self):
-        enabled = bool(self.upload_command.strip())
+        has_image = self.base_surface is not None
+        enabled = has_image and bool(self.upload_command.strip())
+        if not has_image:
+            tooltip = "Open an image first"
+        elif enabled:
+            tooltip = "Upload (Enter)"
+        else:
+            tooltip = "Set an upload command in Preferences"
         self.upload_btn.set_sensitive(enabled)
-        self.upload_btn.set_tooltip_text(
-            "Upload (Enter)" if enabled else "Set an upload command in Preferences"
-        )
+        self.upload_btn.set_tooltip_text(tooltip)
         if getattr(self, "upload_menu_item", None) is not None:
             self.upload_menu_item.set_sensitive(enabled)
+
+    def set_image_controls(self, enabled):
+        for btn in self.tool_buttons.values():
+            btn.set_sensitive(enabled)
+        self.color_btn.set_sensitive(enabled)
+        self.width_spin.set_sensitive(enabled)
+        self.undo_btn.set_sensitive(enabled)
+        self.redo_btn.set_sensitive(enabled)
+        self.save_btn.set_sensitive(enabled)
+        if getattr(self, "save_menu_item", None) is not None:
+            self.save_menu_item.set_sensitive(enabled)
+        self.update_upload_state()
+        if not enabled:
+            self.upload_btn.set_sensitive(False)
+            self.upload_btn.set_tooltip_text("Open an image first")
+            if getattr(self, "upload_menu_item", None) is not None:
+                self.upload_menu_item.set_sensitive(False)
 
     # --- coordinate helpers ---
     def img_coords(self, x, y):
@@ -361,6 +387,8 @@ class Gannotate(Gtk.Window):
 
     # --- mouse events ---
     def on_press(self, widget, ev):
+        if self.base_surface is None:
+            return False
         if ev.button != 1:
             return False
         p = self.clamp(self.img_coords(ev.x, ev.y))
@@ -536,6 +564,14 @@ class Gannotate(Gtk.Window):
 
     # --- drawing ---
     def on_draw(self, widget, cr):
+        if self.base_surface is None:
+            color = self.get_style_context().get_background_color(Gtk.StateFlags.NORMAL)
+            if color.alpha == 0:
+                cr.set_source_rgb(0.12, 0.12, 0.12)
+            else:
+                cr.set_source_rgba(color.red, color.green, color.blue, color.alpha)
+            cr.paint()
+            return False
         cr.save()
         cr.scale(self.scale, self.scale)
         cr.set_source_surface(self.base_surface, 0, 0)
@@ -593,6 +629,7 @@ class Gannotate(Gtk.Window):
         self.upload_after = False
         self.area.set_size_request(dw, dh)
         self.set_title(f"{__app_name__} - {os.path.basename(path)}")
+        self.set_image_controls(True)
         self._resize_to_image(dw, dh)
         self.area.queue_draw()
 
@@ -601,6 +638,11 @@ class Gannotate(Gtk.Window):
         self.set_resizable(True)
         self.resize(dw, dh + height)
         self.set_resizable(False)
+
+    def _start_dir(self):
+        if self.current_path:
+            return os.path.dirname(self.current_path)
+        return os.path.expanduser("~/Pictures")
 
     def open_file(self):
         dlg = Gtk.FileChooserDialog(title="Open image", action=Gtk.FileChooserAction.OPEN)
@@ -620,7 +662,7 @@ class Gannotate(Gtk.Window):
         all_files.set_name("All files")
         all_files.add_pattern("*")
         dlg.add_filter(all_files)
-        current_dir = os.path.dirname(getattr(self, "current_path", ""))
+        current_dir = self._start_dir()
         if current_dir and os.path.isdir(current_dir):
             dlg.set_current_folder(current_dir)
         resp = dlg.run()
@@ -649,6 +691,8 @@ class Gannotate(Gtk.Window):
         self.close()
 
     def upload(self):
+        if self.base_surface is None:
+            return
         if not self.upload_command.strip():
             return
         folder = tempfile.mkdtemp(prefix="gannotate-")
@@ -659,6 +703,8 @@ class Gannotate(Gtk.Window):
         self.close()
 
     def save_dialog(self):
+        if self.base_surface is None:
+            return
         dlg = Gtk.FileChooserDialog(
             title="Save screenshot",
             action=Gtk.FileChooserAction.SAVE,

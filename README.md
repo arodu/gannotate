@@ -48,7 +48,8 @@ sudo apt install python3-gi gir1.2-gtk-3.0 python3-cairo
 ## Run from source
 
 ```sh
-./bin/gannotate path/to/image.png
+./bin/gannotate                    # blank window; use Open Image...
+./bin/gannotate path/to/image.png  # opens a specific image
 ```
 
 ## Install

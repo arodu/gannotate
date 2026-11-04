@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  unit:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -20,5 +20,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Syntax check
         run: python -m py_compile src/gannotate/*.py
-      - name: Unit tests
-        run: make test PYTHON=python
+      - name: Model tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -p 'test_model.py' -v
+
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GTK, Cairo and Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi gir1.2-gtk-3.0 python3-cairo python3-gi-cairo xvfb
+      - name: UI tests
+        env:
+          PYTHONPATH: src
+        run: xvfb-run -a python3 -m unittest discover -s tests -v
