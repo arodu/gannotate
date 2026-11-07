@@ -13,6 +13,6 @@ pkgbase = gannotate
 	optdepends = libnotify: desktop notifications
 	optdepends = xfce4-screenshooter: region capture
 	source = gannotate-0.2.0.tar.gz::https://github.com/arodu/gannotate/archive/refs/tags/v0.2.0.tar.gz
-	sha256sums = SKIP
+	sha256sums = 110d7ae50da7f13857c1a10bdffbcb955155439e8844da58c44ac44dd8c7424d
 
 pkgname = gannotate

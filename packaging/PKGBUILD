@@ -13,7 +13,7 @@ optdepends=(
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 # Replace SKIP with updpkgsums after the v0.2.0 tag is published.
-sha256sums=('SKIP')
+sha256sums=('110d7ae50da7f13857c1a10bdffbcb955155439e8844da58c44ac44dd8c7424d')
 
 package() {
   cd "$pkgname-$pkgver"
