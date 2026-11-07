@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-07
+
 ### Added
 
 - Copy the annotated image to the clipboard without closing the window
   (toolbar button, menu item and Ctrl+C), with a desktop notification.
 - Upload option to keep the window open instead of closing it, with the
   result shown as a desktop notification.
+- Debian `.deb` package build, with a CI workflow that attaches it to
+  releases.
+- Arch `PKGBUILD` for building the package and publishing it in the AUR.
 
 ## [0.1.0] - 2026-11-04
 
@@ -46,5 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Uploads are opt-in and disabled by default.
 - No Wayland, blur or step numbering yet.
 
-[Unreleased]: https://github.com/arodu/gannotate/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/arodu/gannotate/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/arodu/gannotate/releases/tag/v0.2.0
 [0.1.0]: https://github.com/arodu/gannotate/releases/tag/v0.1.0

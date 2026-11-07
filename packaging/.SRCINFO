@@ -1,0 +1,18 @@
+pkgbase = gannotate
+	pkgdesc = Lightweight GTK3 screenshot annotator
+	pkgver = 0.2.0
+	pkgrel = 1
+	url = https://github.com/arodu/gannotate
+	arch = any
+	license = GPL-3.0-only
+	depends = python
+	depends = python-gobject
+	depends = gtk3
+	depends = python-cairo
+	depends = librsvg
+	optdepends = libnotify: desktop notifications
+	optdepends = xfce4-screenshooter: region capture
+	source = gannotate-0.2.0.tar.gz::https://github.com/arodu/gannotate/archive/refs/tags/v0.2.0.tar.gz
+	sha256sums = SKIP
+
+pkgname = gannotate

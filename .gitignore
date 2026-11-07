@@ -6,3 +6,7 @@ dist/
 .venv/
 venv/
 .pytest_cache/
+packaging/src/
+packaging/pkg/
+packaging/*.pkg.tar.zst
+packaging/*.tar.gz

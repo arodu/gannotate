@@ -25,7 +25,7 @@ can hand it off to any upload command you configure.
 
 ## Status / Limitations
 
-Gannotate is an early 0.1.0 release.
+Gannotate is an early 0.2.0 release.
 
 - Linux/X11 focused; tested on XFCE. Region capture relies on `xfce4-screenshooter`.
 - No Wayland/portal capture yet.
@@ -38,17 +38,19 @@ Gannotate is an early 0.1.0 release.
 
 - Python 3.10+
 - PyGObject, GTK3 and pycairo
+- Optional: `libnotify` for desktop notifications and `xfce4-screenshooter`
+  for region capture
 
 Arch / Manjaro:
 
 ```sh
-sudo pacman -S python-gobject gtk3 python-cairo
+sudo pacman -S python-gobject gtk3 python-cairo librsvg
 ```
 
 Debian / Ubuntu:
 
 ```sh
-sudo apt install python3-gi gir1.2-gtk-3.0 python3-cairo
+sudo apt install python3-gi gir1.2-gtk-3.0 python3-cairo python3-gi-cairo librsvg2-common
 ```
 
 ## Run from source
@@ -59,6 +61,33 @@ sudo apt install python3-gi gir1.2-gtk-3.0 python3-cairo
 ```
 
 ## Install
+
+### Debian / Ubuntu
+
+Download `gannotate_0.2.0-1_all.deb` from the latest release and install it:
+
+```sh
+sudo apt install ./gannotate_0.2.0-1_all.deb
+```
+
+### Arch / Manjaro
+
+Once the package is published in the AUR:
+
+```sh
+yay -S gannotate
+```
+
+Or build from the bundled `PKGBUILD`:
+
+```sh
+cd packaging
+makepkg -si
+```
+
+See `packaging/README.md` for the release and AUR workflow.
+
+### From source
 
 ```sh
 sudo make install                    # /usr/local
@@ -73,6 +102,14 @@ Uninstall:
 ```sh
 sudo make uninstall
 ```
+
+### Build packages
+
+```sh
+make deb   # or ./packaging/build-deb.sh
+```
+
+The `.deb` requires `dpkg-deb`; on Arch/Manjaro use Docker or the CI workflow.
 
 ## Use with XFCE
 
@@ -127,14 +164,15 @@ being lost. Configuration lives in `~/.config/gannotate/config.json`.
 make test
 ```
 
-Tests cover the pure geometry model (bounding boxes, hit-testing, move and
-resize) and do not require a display.
+Tests cover geometry, rendering and the GTK UI. UI tests use Xvfb in CI.
 
 ## Project layout
 
 ```
 bin/gannotate              launcher for the source tree
 data/gannotate.desktop     desktop entry
+packaging/build-deb.sh     Debian package builder
+packaging/PKGBUILD         Arch/AUR package recipe
 src/gannotate/app.py       GTK window and interactions
 src/gannotate/model.py     annotation geometry (pure, testable)
 src/gannotate/render.py    Cairo rendering

@@ -1,0 +1,22 @@
+# Maintainer: Alberto Rodriguez <arodu.dev@gmail.com>
+pkgname=gannotate
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="Lightweight GTK3 screenshot annotator"
+arch=('any')
+url="https://github.com/arodu/gannotate"
+license=('GPL-3.0-only')
+depends=('python' 'python-gobject' 'gtk3' 'python-cairo' 'librsvg')
+optdepends=(
+  'libnotify: desktop notifications'
+  'xfce4-screenshooter: region capture'
+)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+# Replace SKIP with updpkgsums after the v0.2.0 tag is published.
+sha256sums=('SKIP')
+
+package() {
+  cd "$pkgname-$pkgver"
+  make install DESTDIR="$pkgdir" PREFIX=/usr
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
