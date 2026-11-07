@@ -3,7 +3,9 @@
 import copy
 import math
 import os
+import shutil
 import tempfile
+import threading
 import time
 
 import cairo
@@ -24,6 +26,7 @@ from .render import (
     measure_text,
     render_surface,
 )  # noqa: E402
+from .upload import run_upload, save_local  # noqa: E402
 
 HANDLE = 9  # screen pixels
 TOOLS = [
@@ -170,6 +173,7 @@ class Gannotate(Gtk.Window):
 
         self.config = config
         self.upload_command = config.get("upload_command", "")
+        self.close_after_upload = bool(config.get("close_after_upload", True))
 
         if path is None:
             self.current_path = None
@@ -196,6 +200,7 @@ class Gannotate(Gtk.Window):
         self.arrow_style = self._config_arrow_style(config.get("arrow_style"))
         self.result_path = None
         self.upload_after = False
+        self.uploading = False
         self.drag_mode = None
         self.drag_index = None
         self.drag_orig = None
@@ -209,6 +214,7 @@ class Gannotate(Gtk.Window):
         self._fit_pending = False
         self._fallback_viewport = (820, 520)
         self._info_timer = None
+        self._destroyed = False
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.add(vbox)
@@ -473,9 +479,15 @@ class Gannotate(Gtk.Window):
 
     def update_upload_state(self):
         has_image = self.base_surface is not None
-        enabled = has_image and bool(self.upload_command.strip())
+        enabled = (
+            has_image
+            and bool(self.upload_command.strip())
+            and not self.uploading
+        )
         if not has_image:
             tooltip = "Open an image first"
+        elif self.uploading:
+            tooltip = "Uploading..."
         elif enabled:
             tooltip = "Upload (Enter)"
         else:
@@ -1070,12 +1082,13 @@ class Gannotate(Gtk.Window):
         return False
 
     def _on_destroy(self, *_):
+        self._destroyed = True
         if self._info_timer is not None:
             GLib.source_remove(self._info_timer)
             self._info_timer = None
 
     def upload(self):
-        if self.base_surface is None:
+        if self.base_surface is None or self.uploading:
             return
         if not self.upload_command.strip():
             return
@@ -1089,9 +1102,49 @@ class Gannotate(Gtk.Window):
             path,
             self.arrow_style,
         )
-        self.result_path = path
-        self.upload_after = True
-        self.close()
+        if self.close_after_upload:
+            self.result_path = path
+            self.upload_after = True
+            self.close()
+            return
+
+        self.uploading = True
+        self.update_upload_state()
+        self.info_label.set_text("Uploading...")
+        command = self.upload_command
+        threading.Thread(
+            target=self._upload_async,
+            args=(command, path, folder),
+            daemon=False,
+        ).start()
+
+    def _upload_async(self, command, path, folder):
+        dest = None
+        try:
+            ok = run_upload(command, path) == 0
+            if not ok:
+                dest = save_local(path)
+        except Exception:
+            ok = False
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+        if ok:
+            notify("Image uploaded")
+        elif dest is not None:
+            notify(f"Upload failed; screenshot saved: {dest}")
+        else:
+            notify("Upload failed")
+        GLib.idle_add(self._upload_finished, ok, dest)
+
+    def _upload_finished(self, ok, dest):
+        self.uploading = False
+        if not self._destroyed:
+            if ok:
+                self._flash_info("Upload complete")
+            else:
+                self._flash_info("Upload failed; screenshot saved")
+            self.update_upload_state()
+        return False
 
     def save_dialog(self):
         if self.base_surface is None:
@@ -1220,6 +1273,14 @@ class Gannotate(Gtk.Window):
         row.pack_start(reset, False, False, 0)
         upload.pack_start(row, False, False, 0)
 
+        close_check = Gtk.CheckButton(label="Close window after upload")
+        close_check.set_active(self.close_after_upload)
+        close_check.set_tooltip_text(
+            "When disabled, the window stays open and the upload result is "
+            "shown as a desktop notification."
+        )
+        upload.pack_start(close_check, False, False, 0)
+
         notebook.append_page(upload, Gtk.Label(label="Upload"))
 
         # Close button (only action)
@@ -1243,6 +1304,8 @@ class Gannotate(Gtk.Window):
 
         self.upload_command = entry.get_text().strip()
         self.config["upload_command"] = self.upload_command
+        self.close_after_upload = close_check.get_active()
+        self.config["close_after_upload"] = self.close_after_upload
 
         rgba = color_btn.get_rgba()
         self.color = self._config_color([rgba.red, rgba.green, rgba.blue])

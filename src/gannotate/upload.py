@@ -2,7 +2,9 @@
 
 import os
 import shlex
+import shutil
 import subprocess
+import time
 
 
 def build_argv(template, path):
@@ -33,3 +35,11 @@ def run_upload(template, path):
         return subprocess.run(argv, check=False).returncode
     except OSError:
         return 127
+
+
+def save_local(path):
+    shots = os.path.expanduser("~/Pictures/Screenshots")
+    os.makedirs(shots, exist_ok=True)
+    dest = os.path.join(shots, time.strftime("%Y%m%d-%H%M%S") + ".png")
+    shutil.move(path, dest)
+    return dest

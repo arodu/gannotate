@@ -12,6 +12,7 @@ CONFIG_PATH = os.path.join(APP_DIR, "config.json")
 DEFAULT_CONFIG = {
     # Empty by default: uploads are opt-in. Use %f for the file path.
     "upload_command": "",
+    "close_after_upload": True,
     "default_color": [0.95, 0.15, 0.15],
     "default_width": 4,
     "arrow_style": "classic",

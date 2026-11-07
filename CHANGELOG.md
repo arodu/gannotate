@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Copy the annotated image to the clipboard without closing the window
   (toolbar button, menu item and Ctrl+C), with a desktop notification.
+- Upload option to keep the window open instead of closing it, with the
+  result shown as a desktop notification.
 
 ## [0.1.0] - 2026-11-04
 

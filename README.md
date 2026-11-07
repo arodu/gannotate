@@ -19,7 +19,8 @@ can hand it off to any upload command you configure.
 - Copy the annotated image to the clipboard (Ctrl+C) without closing, with
   a desktop notification.
 - Save as PNG or run a configurable upload command.
-- Uploads are opt-in and disabled by default.
+- Uploads are opt-in and disabled by default; optionally keep the window
+  open after uploading.
 - Small dependency footprint: GTK3 + Cairo.
 
 ## Status / Limitations
@@ -107,6 +108,8 @@ Open the menu (hamburger) and choose **Preferences**. Set an upload command
 there.
 
 - Empty by default: uploads are disabled and the Upload button is greyed out.
+- **Close window after upload** is enabled by default. Disable it to keep
+  annotating after the upload; the result is shown as a desktop notification.
 - `%f` is replaced by the image path. If `%f` is missing, the path is appended
   as the last argument.
 - The command is split into arguments (no shell pipes), for example:

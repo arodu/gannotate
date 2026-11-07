@@ -3,7 +3,6 @@
 import os
 import shutil
 import sys
-import time
 
 import gi
 
@@ -13,15 +12,7 @@ from gi.repository import Gtk  # noqa: E402
 from .app import Gannotate  # noqa: E402
 from .config import load_config  # noqa: E402
 from .notify import notify  # noqa: E402
-from .upload import run_upload  # noqa: E402
-
-
-def save_local(path):
-    shots = os.path.expanduser("~/Pictures/Screenshots")
-    os.makedirs(shots, exist_ok=True)
-    dest = os.path.join(shots, time.strftime("%Y%m%d-%H%M%S") + ".png")
-    shutil.move(path, dest)
-    return dest
+from .upload import run_upload, save_local  # noqa: E402
 
 
 def main(argv=None):

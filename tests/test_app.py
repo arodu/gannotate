@@ -58,6 +58,8 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.app.arrow_style, "classic")
         self.assertEqual(self.app._config_arrow_style("slim"), "slim")
         self.assertEqual(self.app._config_arrow_style("bogus"), "classic")
+        self.assertTrue(self.app.close_after_upload)
+        self.assertFalse(self.app.uploading)
 
         for button in self.app.tool_buttons.values():
             self.assertFalse(button.get_sensitive())
@@ -207,6 +209,63 @@ class AppTests(unittest.TestCase):
             self.assertIsNone(self.app.result_path)
             self.assertFalse(self.app.upload_after)
             self.assertIsNotNone(self.app.base_surface)
+
+    def test_upload_closes_window_by_default(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "test.png")
+            make_png(path)
+            self.app.load_image(path)
+            self.app.upload_command = "true %f"
+
+            with mock.patch(
+                "gannotate.app.tempfile.mkdtemp", return_value=folder
+            ), mock.patch("gannotate.app.flatten"), mock.patch.object(
+                self.app, "close"
+            ) as close:
+                self.app.upload()
+
+            close.assert_called_once()
+            self.assertTrue(self.app.upload_after)
+            self.assertEqual(self.app.result_path, os.path.join(folder, "annotated.png"))
+
+    def test_upload_can_keep_window_open(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "test.png")
+            make_png(path)
+            self.app.load_image(path)
+            self.app.upload_command = "true %f"
+            self.app.close_after_upload = False
+
+            with mock.patch(
+                "gannotate.app.tempfile.mkdtemp", return_value=folder
+            ), mock.patch("gannotate.app.flatten"), mock.patch(
+                "gannotate.app.threading.Thread"
+            ) as thread, mock.patch.object(self.app, "close") as close:
+                self.app.upload()
+
+            close.assert_not_called()
+            thread.assert_called_once()
+            thread.return_value.start.assert_called_once()
+            self.assertFalse(self.app.upload_after)
+            self.assertIsNone(self.app.result_path)
+            self.assertTrue(self.app.uploading)
+
+    def test_upload_failure_saves_local(self):
+        with mock.patch("gannotate.app.run_upload", return_value=1), mock.patch(
+            "gannotate.app.save_local", return_value="/tmp/saved.png"
+        ) as save_local, mock.patch("gannotate.app.shutil.rmtree") as rmtree, mock.patch(
+            "gannotate.app.notify"
+        ) as notify, mock.patch(
+            "gannotate.app.GLib.idle_add"
+        ) as idle_add:
+            self.app._upload_async("false %f", "/tmp/annotated.png", "/tmp/folder")
+
+        save_local.assert_called_once_with("/tmp/annotated.png")
+        rmtree.assert_called_once_with("/tmp/folder", ignore_errors=True)
+        notify.assert_called_once_with(
+            "Upload failed; screenshot saved: /tmp/saved.png"
+        )
+        idle_add.assert_called_once()
 
     def test_open_file_from_blank(self):
         class FakeFileChooser:
