@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Toolbar actions are ordered upload, copy, save; the menu uses save,
+  copy, upload. The Save menu item now shows the Ctrl+S accelerator.
+
 ## [0.2.0] - 2026-11-07
 
 ### Added

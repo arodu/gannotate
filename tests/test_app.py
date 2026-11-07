@@ -83,6 +83,28 @@ class AppTests(unittest.TestCase):
         self.assertIsNotNone(open_item)
         self.assertTrue(open_item.get_sensitive())
 
+    def test_toolbar_action_order(self):
+        while Gtk.events_pending():
+            Gtk.main_iteration()
+        buttons = [self.app.upload_btn, self.app.copy_btn, self.app.save_btn]
+        buttons.sort(key=lambda button: button.get_allocation().x)
+        self.assertEqual(
+            buttons, [self.app.upload_btn, self.app.copy_btn, self.app.save_btn]
+        )
+
+    def test_menu_action_order(self):
+        menu = self.app.menu_btn.get_popup()
+        labels = [
+            child.get_label()
+            for child in menu.get_children()
+            if isinstance(child, Gtk.ImageMenuItem)
+        ]
+        start = labels.index("Save...")
+        self.assertEqual(
+            labels[start : start + 3],
+            ["Save...", "Copy to Clipboard", "Upload"],
+        )
+
     def test_start_dir_blank(self):
         self.assertEqual(self.app._start_dir(), os.path.expanduser("~/Pictures"))
 

@@ -267,10 +267,6 @@ class Gannotate(Gtk.Window):
 
         bar.pack_end(self.menu_button(), False, False, 0)
         bar.pack_end(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, False, 4)
-        self.upload_btn = self.icon_button(
-            "gannotate-upload-symbolic", "Upload (Enter)", self.upload
-        )
-        bar.pack_end(self.upload_btn, False, False, 0)
         self.save_btn = self.icon_button(
             "gannotate-save-symbolic", "Save as... (Ctrl+S)", self.save_dialog
         )
@@ -281,6 +277,10 @@ class Gannotate(Gtk.Window):
             self.copy_to_clipboard,
         )
         bar.pack_end(self.copy_btn, False, False, 0)
+        self.upload_btn = self.icon_button(
+            "gannotate-upload-symbolic", "Upload (Enter)", self.upload
+        )
+        bar.pack_end(self.upload_btn, False, False, 0)
 
         self.area = Gtk.DrawingArea()
         self.area.set_size_request(dw, dh)
@@ -387,6 +387,16 @@ class Gannotate(Gtk.Window):
         self._menu_item(menu, "Open Image...", "gannotate-open-symbolic", self.open_file)
         menu.append(Gtk.SeparatorMenuItem())
 
+        self.save_menu_item = self._menu_item(
+            menu, "Save...", "gannotate-save-symbolic", self.save_dialog
+        )
+        self.save_menu_item.add_accelerator(
+            "activate",
+            self._accel_group,
+            Gdk.KEY_s,
+            Gdk.ModifierType.CONTROL_MASK,
+            Gtk.AccelFlags.VISIBLE,
+        )
         self.copy_menu_item = self._menu_item(
             menu, "Copy to Clipboard", "gannotate-copy-symbolic", self.copy_to_clipboard
         )
@@ -396,9 +406,6 @@ class Gannotate(Gtk.Window):
             Gdk.KEY_c,
             Gdk.ModifierType.CONTROL_MASK,
             Gtk.AccelFlags.VISIBLE,
-        )
-        self.save_menu_item = self._menu_item(
-            menu, "Save...", "gannotate-save-symbolic", self.save_dialog
         )
         self.upload_menu_item = self._menu_item(
             menu, "Upload", "gannotate-upload-symbolic", self.upload
