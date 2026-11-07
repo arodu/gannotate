@@ -152,11 +152,15 @@ def draw_annotation(cr, a, arrow_style="classic"):
         draw_text(cr, a)
 
 
-def flatten(base_surface, annots, width, height, path, arrow_style="classic"):
+def render_surface(base_surface, annots, width, height, arrow_style="classic"):
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
     cr = cairo.Context(surface)
     cr.set_source_surface(base_surface, 0, 0)
     cr.paint()
     for a in annots:
         draw_annotation(cr, a, arrow_style)
-    surface.write_to_png(path)
+    return surface
+
+
+def flatten(base_surface, annots, width, height, path, arrow_style="classic"):
+    render_surface(base_surface, annots, width, height, arrow_style).write_to_png(path)

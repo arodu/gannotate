@@ -69,8 +69,10 @@ class AppTests(unittest.TestCase):
             self.app.redo_btn,
             self.app.save_btn,
             self.app.upload_btn,
+            self.app.copy_btn,
             self.app.save_menu_item,
             self.app.upload_menu_item,
+            self.app.copy_menu_item,
             *self.app.zoom_buttons,
         ):
             self.assertFalse(widget.get_sensitive())
@@ -101,8 +103,10 @@ class AppTests(unittest.TestCase):
             self.assertTrue(self.app.redo_btn.get_sensitive())
             self.assertTrue(self.app.save_btn.get_sensitive())
             self.assertTrue(self.app.upload_btn.get_sensitive())
+            self.assertTrue(self.app.copy_btn.get_sensitive())
             self.assertTrue(self.app.save_menu_item.get_sensitive())
             self.assertTrue(self.app.upload_menu_item.get_sensitive())
+            self.assertTrue(self.app.copy_menu_item.get_sensitive())
             for widget in self.app.zoom_buttons:
                 self.assertTrue(widget.get_sensitive())
 
@@ -120,6 +124,8 @@ class AppTests(unittest.TestCase):
             self.assertFalse(self.app.tool_buttons["arrow"].get_sensitive())
             self.assertFalse(self.app.save_btn.get_sensitive())
             self.assertFalse(self.app.upload_btn.get_sensitive())
+            self.assertFalse(self.app.copy_btn.get_sensitive())
+            self.assertFalse(self.app.copy_menu_item.get_sensitive())
             for widget in self.app.zoom_buttons:
                 self.assertFalse(widget.get_sensitive())
 
@@ -173,6 +179,34 @@ class AppTests(unittest.TestCase):
             self.assertTrue(self.app.save_btn.get_sensitive())
             self.assertFalse(self.app.upload_btn.get_sensitive())
             self.assertFalse(self.app.upload_menu_item.get_sensitive())
+
+    def test_copy_to_clipboard_keeps_window(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "test.png")
+            make_png(path)
+            self.app.load_image(path)
+
+            clipboard = mock.Mock()
+            with mock.patch.object(Gtk.Clipboard, "get", return_value=clipboard), mock.patch(
+                "gannotate.app.notify"
+            ) as notify:
+                handled = self.app.on_key(
+                    self.app,
+                    SimpleNamespace(
+                        keyval=Gdk.KEY_c,
+                        state=Gdk.ModifierType.CONTROL_MASK,
+                    ),
+                )
+
+            self.assertTrue(handled)
+            notify.assert_called_once_with("Image copied to clipboard")
+            clipboard.set_image.assert_called_once()
+            clipboard.store.assert_called_once()
+            pixbuf = clipboard.set_image.call_args[0][0]
+            self.assertEqual((pixbuf.get_width(), pixbuf.get_height()), (120, 80))
+            self.assertIsNone(self.app.result_path)
+            self.assertFalse(self.app.upload_after)
+            self.assertIsNotNone(self.app.base_surface)
 
     def test_open_file_from_blank(self):
         class FakeFileChooser:

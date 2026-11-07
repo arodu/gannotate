@@ -2,7 +2,6 @@
 
 import os
 import shutil
-import subprocess
 import sys
 import time
 
@@ -11,15 +10,10 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk  # noqa: E402
 
-from . import ICON_PATH, __app_name__  # noqa: E402
 from .app import Gannotate  # noqa: E402
 from .config import load_config  # noqa: E402
+from .notify import notify  # noqa: E402
 from .upload import run_upload  # noqa: E402
-
-
-def notify(message):
-    icon = ICON_PATH if os.path.isfile(ICON_PATH) else "gannotate"
-    subprocess.run(["notify-send", "-i", icon, __app_name__, message], check=False)
 
 
 def save_local(path):

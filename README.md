@@ -16,6 +16,8 @@ can hand it off to any upload command you configure.
   middle-drag or Ctrl+drag to pan.
 - Select tool to move and resize annotations after adding them.
 - Undo/redo and delete selected.
+- Copy the annotated image to the clipboard (Ctrl+C) without closing, with
+  a desktop notification.
 - Save as PNG or run a configurable upload command.
 - Uploads are opt-in and disabled by default.
 - Small dependency footprint: GTK3 + Cairo.
@@ -92,6 +94,7 @@ Then capture a region and pick the action. `%f` is the captured image path.
 | Key                    | Action                    |
 |------------------------|---------------------------|
 | Enter                  | Upload (if configured)    |
+| Ctrl+C                 | Copy image to clipboard   |
 | Ctrl+S                 | Save as...                |
 | Esc                    | Cancel                    |
 | Ctrl+Z                 | Undo                      |
@@ -133,6 +136,7 @@ src/gannotate/app.py       GTK window and interactions
 src/gannotate/model.py     annotation geometry (pure, testable)
 src/gannotate/render.py    Cairo rendering
 src/gannotate/config.py    config file handling
+src/gannotate/notify.py    desktop notifications
 src/gannotate/upload.py    upload command runner
 src/gannotate/__main__.py  CLI entry point
 ```

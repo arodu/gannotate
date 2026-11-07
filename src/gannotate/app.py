@@ -16,7 +16,14 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
 from . import ICON_PATH, ICON_ROOT, __app_name__, __version__  # noqa: E402
 from .config import save_config  # noqa: E402
 from .model import bbox, hit, scale_annotation, translate  # noqa: E402
-from .render import ARROW_STYLES, draw_annotation, flatten, measure_text  # noqa: E402
+from .notify import notify  # noqa: E402
+from .render import (
+    ARROW_STYLES,
+    draw_annotation,
+    flatten,
+    measure_text,
+    render_surface,
+)  # noqa: E402
 
 HANDLE = 9  # screen pixels
 TOOLS = [
@@ -201,6 +208,7 @@ class Gannotate(Gtk.Window):
         self.zoom_fit_mode = True
         self._fit_pending = False
         self._fallback_viewport = (820, 520)
+        self._info_timer = None
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.add(vbox)
@@ -248,14 +256,25 @@ class Gannotate(Gtk.Window):
         )
         bar.pack_start(self.redo_btn, False, False, 0)
 
+        self._accel_group = Gtk.AccelGroup()
+        self.add_accel_group(self._accel_group)
+
         bar.pack_end(self.menu_button(), False, False, 0)
         bar.pack_end(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, False, 4)
+        self.upload_btn = self.icon_button(
+            "gannotate-upload-symbolic", "Upload (Enter)", self.upload
+        )
+        bar.pack_end(self.upload_btn, False, False, 0)
         self.save_btn = self.icon_button(
             "gannotate-save-symbolic", "Save as... (Ctrl+S)", self.save_dialog
         )
         bar.pack_end(self.save_btn, False, False, 0)
-        self.upload_btn = self.icon_button("gannotate-upload-symbolic", "Upload (Enter)", self.upload)
-        bar.pack_end(self.upload_btn, False, False, 0)
+        self.copy_btn = self.icon_button(
+            "gannotate-copy-symbolic",
+            "Copy to clipboard (Ctrl+C)",
+            self.copy_to_clipboard,
+        )
+        bar.pack_end(self.copy_btn, False, False, 0)
 
         self.area = Gtk.DrawingArea()
         self.area.set_size_request(dw, dh)
@@ -287,6 +306,7 @@ class Gannotate(Gtk.Window):
         vbox.pack_start(self.statusbar, False, False, 0)
 
         self.connect("key-press-event", self.on_key)
+        self.connect("destroy", self._on_destroy)
         self.connect("destroy", Gtk.main_quit)
 
         if path is not None:
@@ -361,11 +381,21 @@ class Gannotate(Gtk.Window):
         self._menu_item(menu, "Open Image...", "gannotate-open-symbolic", self.open_file)
         menu.append(Gtk.SeparatorMenuItem())
 
-        self.upload_menu_item = self._menu_item(
-            menu, "Upload", "gannotate-upload-symbolic", self.upload
+        self.copy_menu_item = self._menu_item(
+            menu, "Copy to Clipboard", "gannotate-copy-symbolic", self.copy_to_clipboard
+        )
+        self.copy_menu_item.add_accelerator(
+            "activate",
+            self._accel_group,
+            Gdk.KEY_c,
+            Gdk.ModifierType.CONTROL_MASK,
+            Gtk.AccelFlags.VISIBLE,
         )
         self.save_menu_item = self._menu_item(
             menu, "Save...", "gannotate-save-symbolic", self.save_dialog
+        )
+        self.upload_menu_item = self._menu_item(
+            menu, "Upload", "gannotate-upload-symbolic", self.upload
         )
         menu.append(Gtk.SeparatorMenuItem())
 
@@ -463,10 +493,13 @@ class Gannotate(Gtk.Window):
         self.undo_btn.set_sensitive(enabled)
         self.redo_btn.set_sensitive(enabled)
         self.save_btn.set_sensitive(enabled)
+        self.copy_btn.set_sensitive(enabled)
         for btn in getattr(self, "zoom_buttons", []):
             btn.set_sensitive(enabled)
         if getattr(self, "save_menu_item", None) is not None:
             self.save_menu_item.set_sensitive(enabled)
+        if getattr(self, "copy_menu_item", None) is not None:
+            self.copy_menu_item.set_sensitive(enabled)
         self.update_upload_state()
         if not enabled:
             self.upload_btn.set_sensitive(False)
@@ -665,6 +698,9 @@ class Gannotate(Gtk.Window):
             return True
         if key in (Gdk.KEY_Return, Gdk.KEY_KP_Enter) and not ctrl:
             self.upload()
+            return True
+        if ctrl and key in (Gdk.KEY_c, Gdk.KEY_C):
+            self.copy_to_clipboard()
             return True
         if ctrl and key in (Gdk.KEY_s, Gdk.KEY_S):
             self.save_dialog()
@@ -999,6 +1035,44 @@ class Gannotate(Gtk.Window):
         self.result_path = None
         self.upload_after = False
         self.close()
+
+    def copy_to_clipboard(self):
+        if self.base_surface is None:
+            return
+        surface = render_surface(
+            self.base_surface,
+            self.annots,
+            self.img_w,
+            self.img_h,
+            self.arrow_style,
+        )
+        surface.flush()
+        pixbuf = Gdk.pixbuf_get_from_surface(
+            surface, 0, 0, self.img_w, self.img_h
+        )
+        if pixbuf is None:
+            return
+        clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+        clipboard.set_image(pixbuf)
+        clipboard.store()
+        self._flash_info("Copied to clipboard")
+        notify("Image copied to clipboard")
+
+    def _flash_info(self, message):
+        if self._info_timer is not None:
+            GLib.source_remove(self._info_timer)
+        self.info_label.set_text(message)
+        self._info_timer = GLib.timeout_add(1500, self._restore_info)
+
+    def _restore_info(self):
+        self._info_timer = None
+        self.update_info_label()
+        return False
+
+    def _on_destroy(self, *_):
+        if self._info_timer is not None:
+            GLib.source_remove(self._info_timer)
+            self._info_timer = None
 
     def upload(self):
         if self.base_surface is None:
