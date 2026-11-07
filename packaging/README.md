@@ -70,10 +70,29 @@ To publish, copy `PKGBUILD` and `.SRCINFO` into the AUR repository for
 `.github/workflows/package.yml` builds the `.deb` on every push to `main`,
 pull request and tag. On tags matching `v*` it also:
 
-1. runs `lintian --fail-on error`;
-2. generates `dist/SHA256SUMS`;
-3. creates the GitHub release if needed and uploads the `.deb` and checksums
+1. calls the reusable `tests.yml` workflow; if tests fail, the release is not
+   published;
+2. runs `lintian --fail-on error`;
+3. generates `dist/SHA256SUMS`;
+4. creates the GitHub release if needed and uploads the `.deb` and checksums
    using `GITHUB_TOKEN`.
+
+The `deb` job uploads a temporary `gannotate-deb` artifact on every run. To
+test it before tagging, open the workflow run in **Actions → packages →
+Artifacts**, or download it with the GitHub CLI:
+
+```sh
+gh run list --workflow=package.yml
+gh run download <run-id> -n gannotate-deb
+```
+
+The web UI downloads a zip containing the `.deb` and `SHA256SUMS`; `gh run
+download` extracts it into a directory. Artifacts expire after 90 days by
+default; release assets are permanent.
+
+`tests.yml` runs on branch pushes and pull requests. Tag pushes skip it as a
+standalone workflow and run it through the reusable call in `package.yml`, so
+tests are not duplicated.
 
 The Arch package is not built in CI because it requires an Arch environment.
 Build it locally (see above) or in an Arch container before updating the AUR.
